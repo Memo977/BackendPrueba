@@ -9,6 +9,11 @@ const Video = require('../models/videoModel');
  */
 const playlistPost = async (req, res) => {
     try {
+        // Verificar que req.user existe antes de acceder a req.user.id
+        if (!req.user) {
+            return res.status(401).json({ error: 'Autenticación requerida' });
+        }
+
         // Crear la nueva playlist
         const playlist = new Playlist({
             name: req.body.name,
@@ -49,7 +54,8 @@ const playlistGet = async (req, res) => {
             }
             
             // Verificar que el usuario sea el propietario de la playlist o un usuario restringido
-            const isAdmin = playlist.adminId === req.user.id;
+            // Verificar req.user antes de acceder a req.user.id
+            const isAdmin = req.user && playlist.adminId === req.user.id;
             const isRestrictedUser = req.restrictedUserId && playlist.associatedProfiles.includes(req.restrictedUserId);
             
             if (!isAdmin && !isRestrictedUser) {
@@ -86,7 +92,21 @@ const playlistGet = async (req, res) => {
         
         // Si no se proporcionan parámetros, obtener todas las playlists del usuario
         else {
-            const playlists = await Playlist.find({ adminId: req.user.id });
+            // Verificar req.user antes de acceder a req.user.id
+            if (!req.user && !req.restrictedUserId) {
+                return res.status(401).json({ error: "Autenticación requerida" });
+            }
+            
+            let playlists;
+            if (req.user) {
+                // Si es un administrador, obtener sus playlists
+                playlists = await Playlist.find({ adminId: req.user.id });
+            } else if (req.restrictedUserId) {
+                // Si es un usuario restringido, obtener las playlists asociadas a su perfil
+                playlists = await Playlist.find({ 
+                    associatedProfiles: { $in: [req.restrictedUserId] } 
+                });
+            }
             
             // Para cada playlist, obtener el conteo de videos
             const playlistsWithCount = await Promise.all(playlists.map(async (playlist) => {
@@ -114,6 +134,11 @@ const playlistPatch = async (req, res) => {
     try {
         if (!req.query || !req.query.id) {
             return res.status(400).json({ error: "Se requiere el ID de la playlist" });
+        }
+
+        // Verificar que req.user existe antes de continuar
+        if (!req.user) {
+            return res.status(401).json({ error: "Autenticación requerida" });
         }
 
         const playlist = await Playlist.findById(req.query.id);
@@ -153,6 +178,11 @@ const playlistDelete = async (req, res) => {
     try {
         if (!req.query || !req.query.id) {
             return res.status(400).json({ error: "Se requiere el ID de la playlist" });
+        }
+
+        // Verificar que req.user existe antes de continuar
+        if (!req.user) {
+            return res.status(401).json({ error: "Autenticación requerida" });
         }
 
         const playlist = await Playlist.findById(req.query.id);
