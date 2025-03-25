@@ -2,8 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 const path = require('path');
-const bcrypt = require('bcrypt'); // Reemplazamos CryptoJS por bcrypt
-const saltRounds = 10; // Configuración estándar para bcrypt
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 app.use(express.static(path.join(__dirname, 'public')));
 const User = require("../models/userModel");
 const Restricted_users = require("../models/restricted_usersModel");
@@ -223,11 +223,29 @@ const userPatch = async (req, res) => {
       // Actualizar los campos proporcionados
       if (req.body.email) user.email = req.body.email;
       
-      // Si se actualiza la contraseña, hash con bcrypt
+      // Si se actualiza la contraseña, primero verificar la contraseña actual
       if (req.body.password) {
-        if (req.body.password !== req.body.repeat_password) {
-          return res.status(422).json({ error: "Passwords do not match" });
+        // Verificar que se proporcionó la contraseña actual
+        if (!req.body.current_password) {
+          return res.status(400).json({ error: "Current password is required to change password" });
         }
+        
+        // Verificar que la contraseña actual es correcta
+        const isCurrentPasswordValid = await bcrypt.compare(
+          req.body.current_password, 
+          user.password
+        );
+        
+        if (!isCurrentPasswordValid) {
+          return res.status(401).json({ error: "Current password is incorrect" });
+        }
+        
+        // Verificar que las nuevas contraseñas coinciden
+        if (req.body.password !== req.body.repeat_password) {
+          return res.status(422).json({ error: "New passwords do not match" });
+        }
+        
+        // Generar hash de la nueva contraseña
         user.password = await bcrypt.hash(req.body.password, saltRounds);
         user.repeat_password = user.password; // Mantener consistencia
       }
@@ -284,4 +302,4 @@ module.exports = {
   userDelete,
   userGetEmail,
   confirmEmail
-};
+};  
