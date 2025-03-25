@@ -26,7 +26,7 @@ router.get('/profiles', authenticate, async (req, res) => {
  * Verificar PIN para acceso a un perfil restringido
  * POST /api/public/verify-pin
  */
-router.post('/verify-pin', async (req, res) => {
+router.post('/verify-pin', authenticate, async (req, res) => {
     const { profileId, pin } = req.body;
     
     if (!profileId || !pin) {
@@ -34,7 +34,11 @@ router.post('/verify-pin', async (req, res) => {
     }
     
     try {
-        const profile = await Restricted_users.findById(profileId);
+        // Verificar que el perfil pertenece al administrador autenticado
+        const profile = await Restricted_users.findOne({
+            _id: profileId,
+            AdminId: req.user.id  // Asegura que el perfil pertenece al admin actual
+        });
         
         if (!profile) {
             return res.status(404).json({ error: 'Perfil no encontrado' });
