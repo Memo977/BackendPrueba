@@ -125,46 +125,6 @@ const userPost = async (req, res) => {
   }
 };
 
-/**
- * Delete a user
- *
- * @param {*} req
- * @param {*} res
- */
-const userDelete = async (req, res) => {
-  if (req.query && req.query.id) {
-    try {
-      const user = await User.findById(req.query.id).exec();
-      if (!user) {
-        return res.status(404).json({ error: "User doesn't exist" });
-      }
-
-      // Validar que el usuario logueado es el dueño de la cuenta
-      if (user._id.toString() !== req.user.id) {
-        return res.status(403).json({ error: "You are not authorized to delete this user" });
-      }
-
-      // Eliminar todos los usuarios restringidos asociados a este administrador
-      await Restricted_users.deleteMany({ AdminId: user._id.toString() });
-
-      // Eliminar sesiones del usuario administrador (opcional)
-      await deleteSession(user.email);
-
-      // Eliminar al usuario administrador
-      await user.deleteOne();
-
-      // Respuesta con mensaje de éxito
-      return res.status(200).json({ message: "User deleted successfully" });
-
-    } catch (err) {
-      console.log('Error while deleting the user', err);
-      return res.status(422).json({ error: 'There was an error deleting the user' });
-    }
-  } else {
-    return res.status(404).json({ error: "User doesn't exist" });
-  }
-};
-
 /** Get one or all users
 *
 * @param {*} req
@@ -197,80 +157,6 @@ const userGetEmail = function (email) {
   return User.findOne({ email });
 };
 
-/**
- * Updates a user
- *
- * @param {*} req
- * @param {*} res
- */
-const userPatch = async (req, res) => {
-  if (!req.query || !req.query.id) {
-      return res.status(400).json({ error: "Bad request: ID parameter is required" });
-  }
-
-  try {
-      const user = await User.findById(req.query.id);
-
-      if (!user) {
-          return res.status(404).json({ error: "User doesn't exist" });
-      }
-
-      // Validar que el usuario logueado es el dueño de la cuenta
-      if (user._id.toString() !== req.user.id) {
-          return res.status(403).json({ error: "You are not authorized to edit this user" });
-      }
-
-      // Actualizar los campos proporcionados
-      if (req.body.email) user.email = req.body.email;
-      
-      // Si se actualiza la contraseña, primero verificar la contraseña actual
-      if (req.body.password) {
-        // Verificar que se proporcionó la contraseña actual
-        if (!req.body.current_password) {
-          return res.status(400).json({ error: "Current password is required to change password" });
-        }
-        
-        // Verificar que la contraseña actual es correcta
-        const isCurrentPasswordValid = await bcrypt.compare(
-          req.body.current_password, 
-          user.password
-        );
-        
-        if (!isCurrentPasswordValid) {
-          return res.status(401).json({ error: "Current password is incorrect" });
-        }
-        
-        // Verificar que las nuevas contraseñas coinciden
-        if (req.body.password !== req.body.repeat_password) {
-          return res.status(422).json({ error: "New passwords do not match" });
-        }
-        
-        // Generar hash de la nueva contraseña
-        user.password = await bcrypt.hash(req.body.password, saltRounds);
-        user.repeat_password = user.password; // Mantener consistencia
-      }
-      
-      if (req.body.phone_number) user.phone_number = req.body.phone_number;
-      if (req.body.pin) user.pin = req.body.pin;
-      if (req.body.name) user.name = req.body.name;
-      if (req.body.last_name) user.last_name = req.body.last_name;
-      if (req.body.country) user.country = req.body.country;
-      if (req.body.birthdate) user.birthdate = req.body.birthdate;
-
-      const updatedUser = await user.save();
-
-      // Respuesta con mensaje y datos actualizados
-      return res.status(200).json({
-          message: "User updated successfully",
-          data: updatedUser
-      });
-
-  } catch (err) {
-      console.log('Error while updating the user', err);
-      return res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
 const confirmEmail = async (req, res) => {
   const { id } = req.query;
   
@@ -298,8 +184,6 @@ const confirmEmail = async (req, res) => {
 module.exports = {
   userPost,
   userGet,
-  userPatch,
-  userDelete,
   userGetEmail,
   confirmEmail
 };  
