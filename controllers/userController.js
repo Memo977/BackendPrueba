@@ -13,6 +13,7 @@ const GMAIL_PASS = process.env.GMAIL_PASS;
 
 const nodemailer = require('nodemailer');
 
+// Verifica si el usuario tiene al menos 18 años
 const isAtLeast18YearsOld = (birthdate) => {
   const today = new Date();
   const birthdateObj = new Date(birthdate);
@@ -20,7 +21,7 @@ const isAtLeast18YearsOld = (birthdate) => {
   let age = today.getFullYear() - birthdateObj.getFullYear();
   const monthDifference = today.getMonth() - birthdateObj.getMonth();
   
-  // If birthday hasn't occurred yet this year, subtract one year
+  // Si el cumpleaños aún no ha ocurrido este año, resta un año
   if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthdateObj.getDate())) {
     age--;
   }
@@ -37,6 +38,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Envía el correo de confirmación al usuario registrado
 const sendConfirmationEmail = (user) => {
   const confirmationUrl = `http://localhost:3000/api/users/confirm?id=${user._id}&register=true`;
   const mailOptions = {
@@ -56,7 +58,7 @@ const sendConfirmationEmail = (user) => {
 };
 
 /**
- * Creates a user
+ * Crea un usuario nuevo
  *
  * @param {*} req
  * @param {*} res
@@ -125,24 +127,25 @@ const userPost = async (req, res) => {
   }
 };
 
-/** Get one or all users
-*
-* @param {*} req
-* @param {*} res
-*/
+/** 
+ * Obtiene uno o todos los usuarios
+ *
+ * @param {*} req
+ * @param {*} res
+ */
 const userGet = (req, res) => {
   if (req.query && req.query.id) {
-    // filter and get one video
+    // Filtra y obtiene un usuario
     User.findById(req.query.id)
       .then((user) => {
         res.json(user);
       })
       .catch(err => {
-        console.log('error while querying the user', err);
+        console.log('Error while querying the user', err);
         res.status(404).json({ error: "User doesn't exist" });
       });
   } else {
-    // get all videos
+    // Obtiene todos los usuarios
     User.find()
       .then(user => {
         res.json(user);
@@ -153,10 +156,12 @@ const userGet = (req, res) => {
   }
 };
 
+// Encuentra un usuario por su email
 const userGetEmail = function (email) {
   return User.findOne({ email });
 };
 
+// Confirma el email del usuario
 const confirmEmail = async (req, res) => {
   const { id } = req.query;
   
@@ -186,4 +191,4 @@ module.exports = {
   userGet,
   userGetEmail,
   confirmEmail
-};  
+};

@@ -1,6 +1,3 @@
-/**
- * Middleware para manejar autenticación de usuarios restringidos por PIN
- */
 const jwt = require('jsonwebtoken');
 const Restricted_users = require('../models/restricted_usersModel');
 const BlacklistedToken = require('../models/blacklistedTokenModel');
@@ -9,7 +6,7 @@ const authenticateRestrictedUser = async (req, res, next) => {
     // Primero verifica si existe una sesión de administrador
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: "Se requiere sesión de administrador" });
+        return res.status(401).json({ error: "Administrator session required" });
     }
     
     try {
@@ -17,7 +14,7 @@ const authenticateRestrictedUser = async (req, res, next) => {
         const token = authHeader.split(' ')[1];
         const isBlacklisted = await BlacklistedToken.findOne({ token });
         if (isBlacklisted) {
-            return res.status(401).json({ error: "Token ha sido revocado" });
+            return res.status(401).json({ error: "Token has been revoked" });
         }
         
         // Verificar validez del token
@@ -27,7 +24,7 @@ const authenticateRestrictedUser = async (req, res, next) => {
         // Luego verificar el PIN del usuario restringido
         const pin = req.headers['x-restricted-pin'];
         if (!pin) {
-            return res.status(401).json({ error: "Se requiere PIN para acceso restringido" });
+            return res.status(401).json({ error: "PIN required for restricted access" });
         }
         
         // Buscar el usuario restringido que coincida con el PIN y pertenezca al admin
@@ -37,7 +34,7 @@ const authenticateRestrictedUser = async (req, res, next) => {
         });
         
         if (!restrictedUser) {
-            return res.status(401).json({ error: "PIN inválido o perfil no asociado" });
+            return res.status(401).json({ error: "Invalid PIN or profile not associated" });
         }
         
         // Guardar ID del usuario restringido en el request
@@ -46,10 +43,10 @@ const authenticateRestrictedUser = async (req, res, next) => {
         next();
     } catch (err) {
         if (err.name === 'TokenExpiredError') {
-            return res.status(401).json({ error: "Token expirado" });
+            return res.status(401).json({ error: "Token expired" });
         }
-        console.error("Error en autenticación:", err);
-        return res.status(401).json({ error: "Error de autenticación" });
+        console.error("Authentication error:", err);
+        return res.status(401).json({ error: "Authentication error" });
     }
 };
 
