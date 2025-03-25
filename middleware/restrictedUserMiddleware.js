@@ -1,7 +1,9 @@
 /**
  * Middleware para manejar autenticación de usuarios restringidos por PIN
  */
+const jwt = require('jsonwebtoken');
 const Restricted_users = require('../models/restricted_usersModel');
+const BlacklistedToken = require('../models/blacklistedTokenModel');
 
 const authenticateRestrictedUser = async (req, res, next) => {
     // Primero verifica si existe una sesión de administrador
