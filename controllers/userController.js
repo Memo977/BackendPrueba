@@ -72,7 +72,7 @@ const userPost = async (req, res) => {
   user.last_name = req.body.last_name;
   user.country = req.body.country;
   user.birthdate = req.body.birthdate;
-  user.state = req.body.state;
+  user.state = req.body.state !== undefined ? req.body.state : false;
 
   // Verifica que las contraseñas coincidan antes de hash
   if (req.body.password !== req.body.repeat_password) {
