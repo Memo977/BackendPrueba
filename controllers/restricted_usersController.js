@@ -64,8 +64,7 @@ const restricted_usersDelete = async (req, res) => {
 
             await restricted_users.deleteOne();
 
-            // Respuesta con mensaje de éxito
-            res.status(200).json({ message: "Restricted user deleted successfully" });
+            return res.status(204).end();
 
         } catch (err) {
             res.status(422);

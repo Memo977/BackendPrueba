@@ -53,8 +53,7 @@ const playlistGet = async (req, res) => {
                 return res.status(404).json({ error: "Playlist not found" });
             }
             
-            // Verificar que el usuario sea el propietario de la playlist o un usuario restringido
-            // Verificar req.user antes de acceder a req.user.id
+            // Verificar que el usuario sea el propietario de la playlist o un usuario restringido con acceso
             const isAdmin = req.user && playlist.adminId === req.user.id;
             const isRestrictedUser = req.restrictedUserId && playlist.associatedProfiles.includes(req.restrictedUserId);
             
@@ -74,20 +73,49 @@ const playlistGet = async (req, res) => {
         
         // Si se proporciona un profileId, obtener playlists asociadas a ese perfil
         else if (req.query && req.query.profileId) {
-            const playlists = await Playlist.find({ 
-                associatedProfiles: { $in: [req.query.profileId] } 
-            });
-            
-            // Para cada playlist, obtener el conteo de videos
-            const playlistsWithCount = await Promise.all(playlists.map(async (playlist) => {
-                const videoCount = await Video.countDocuments({ playlistId: playlist._id });
-                return {
-                    ...playlist.toObject(),
-                    videoCount
-                };
-            }));
-            
-            return res.status(200).json(playlistsWithCount);
+            // Validar que el admin actual pueda acceder a ese perfil
+            // O que el usuario restringido esté accediendo solo a sus propias playlists
+            if (req.user) {
+                // El admin solo puede ver perfiles asociados a él
+                const playlists = await Playlist.find({ 
+                    associatedProfiles: { $in: [req.query.profileId] },
+                    adminId: req.user.id  // Asegurar que sean playlists del admin actual
+                });
+                
+                // Para cada playlist, obtener el conteo de videos
+                const playlistsWithCount = await Promise.all(playlists.map(async (playlist) => {
+                    const videoCount = await Video.countDocuments({ playlistId: playlist._id });
+                    return {
+                        ...playlist.toObject(),
+                        videoCount
+                    };
+                }));
+                
+                return res.status(200).json(playlistsWithCount);
+            } else if (req.restrictedUserId) {
+                // Un usuario restringido solo puede ver sus propias playlists
+                // Verificamos que el profileId coincida con el ID del usuario restringido
+                if (req.restrictedUserId !== req.query.profileId) {
+                    return res.status(403).json({ error: "You don't have permission to view these playlists" });
+                }
+                
+                const playlists = await Playlist.find({ 
+                    associatedProfiles: { $in: [req.restrictedUserId] } 
+                });
+                
+                // Para cada playlist, obtener el conteo de videos
+                const playlistsWithCount = await Promise.all(playlists.map(async (playlist) => {
+                    const videoCount = await Video.countDocuments({ playlistId: playlist._id });
+                    return {
+                        ...playlist.toObject(),
+                        videoCount
+                    };
+                }));
+                
+                return res.status(200).json(playlistsWithCount);
+            } else {
+                return res.status(401).json({ error: "Authentication required" });
+            }
         } 
         
         // Si no se proporcionan parámetros, obtener todas las playlists del usuario
@@ -102,7 +130,7 @@ const playlistGet = async (req, res) => {
                 // Si es un administrador, obtener sus playlists
                 playlists = await Playlist.find({ adminId: req.user.id });
             } else if (req.restrictedUserId) {
-                // Si es un usuario restringido, obtener las playlists asociadas a su perfil
+                // Si es un usuario restringido, obtener SOLO las playlists asociadas a su perfil
                 playlists = await Playlist.find({ 
                     associatedProfiles: { $in: [req.restrictedUserId] } 
                 });
@@ -202,7 +230,7 @@ const playlistDelete = async (req, res) => {
         // Eliminar la playlist
         await playlist.deleteOne();
         
-        res.status(200).json({ message: "Playlist and associated videos deleted successfully" });
+        return res.status(204).end();
     } catch (error) {
         console.error('Error deleting playlist:', error);
         res.status(500).json({ error: 'Error deleting playlist' });

@@ -5,7 +5,7 @@ const Restricted_users = require("../models/restricted_usersModel");
 
 /**
  * Obtener los perfiles para la pantalla de selección
- * GET /api/public/profiles?adminId={adminId}
+ * GET /api/public/profiles
  */
 router.get('/profiles', authenticate, async (req, res) => {
     try {
@@ -15,7 +15,14 @@ router.get('/profiles', authenticate, async (req, res) => {
         // Buscar perfiles asociados a este administrador
         const profiles = await Restricted_users.find({ AdminId: adminId });
         
-        res.status(200).json(profiles);
+        // Solo devolver información mínima necesaria por seguridad
+        const sanitizedProfiles = profiles.map(profile => ({
+            _id: profile._id,
+            full_name: profile.full_name,
+            avatar: profile.avatar
+        }));
+        
+        res.status(200).json(sanitizedProfiles);
     } catch (error) {
         console.error('Error al obtener perfiles:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
@@ -48,8 +55,12 @@ router.post('/verify-pin', authenticate, async (req, res) => {
             return res.status(401).json({ error: 'PIN incorrecto' });
         }
         
-        // Devolver información del perfil para confirmación
-        res.status(200).json(profile);
+        // Devolver información del perfil para confirmación (sin incluir el PIN por seguridad)
+        res.status(200).json({
+            _id: profile._id,
+            full_name: profile.full_name,
+            avatar: profile.avatar
+        });
     } catch (error) {
         console.error('Error al verificar PIN:', error);
         res.status(500).json({ error: 'Error interno del servidor' });

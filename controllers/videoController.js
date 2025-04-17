@@ -76,7 +76,7 @@ const videoGet = async (req, res) => {
                 return res.status(404).json({ error: "Video not found" });
             }
             
-            // Verificar permisos (debe ser el propietario o estar en la lista de usuarios restringidos)
+            // Verificar permisos: debe ser el propietario o estar en la lista de usuarios restringidos
             const playlist = await Playlist.findById(video.playlistId);
             
             if (!playlist) {
@@ -103,7 +103,7 @@ const videoGet = async (req, res) => {
             }
             
             // Verificar permisos
-            // Verificar req.user antes de acceder a req.user.id
+            // Solo el admin o un usuario restringido con acceso puede ver estos videos
             const isAdmin = req.user && playlist.adminId === req.user.id;
             const isRestrictedUser = req.restrictedUserId && playlist.associatedProfiles.includes(req.restrictedUserId);
             
@@ -119,12 +119,14 @@ const videoGet = async (req, res) => {
         else if (req.query && req.query.search) {
             // Si es un usuario restringido, buscar solo en sus playlists asignadas
             if (req.restrictedUserId) {
+                // Primero obtener las playlists asignadas a este perfil específico
                 const playlists = await Playlist.find({ 
                     associatedProfiles: { $in: [req.restrictedUserId] } 
                 });
                 
                 const playlistIds = playlists.map(p => p._id);
                 
+                // Solo buscar en las playlists a las que tiene acceso
                 const videos = await Video.find({
                     playlistId: { $in: playlistIds },
                     $or: [
@@ -151,14 +153,15 @@ const videoGet = async (req, res) => {
             }
         } 
         
-        // Si no se proporcionan parámetros, obtener todos los videos del usuario
+        // Si no se proporcionan parámetros, obtener videos según el tipo de usuario
         else {
             // Verificar req.user antes de acceder a req.user.id
             if (req.user) {
+                // Si es administrador, mostrar todos sus videos
                 const videos = await Video.find({ adminId: req.user.id });
                 return res.status(200).json(videos);
             } else if (req.restrictedUserId) {
-                // Para usuarios restringidos, obtener videos de playlists asignadas
+                // Para usuarios restringidos, obtener SOLO videos de playlists asignadas a su perfil
                 const playlists = await Playlist.find({ 
                     associatedProfiles: { $in: [req.restrictedUserId] } 
                 });
@@ -273,7 +276,7 @@ const videoDelete = async (req, res) => {
         // Eliminar el video
         await video.deleteOne();
         
-        res.status(200).json({ message: "Video deleted successfully" });
+        return res.status(204).end();
     } catch (error) {
         console.error('Error deleting video:', error);
         res.status(500).json({ error: 'Error deleting video' });
